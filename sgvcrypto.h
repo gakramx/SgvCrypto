@@ -14,6 +14,10 @@ class SgvCrypto : public QMainWindow
 public:
     SgvCrypto(QWidget *parent = nullptr);
     ~SgvCrypto();
+     QString encrypt(const QString& id);
+
+private slots:
+    void on_generateBtn_clicked();
 
 private:
     Ui::SgvCrypto *ui;
