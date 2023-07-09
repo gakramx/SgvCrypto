@@ -21,6 +21,8 @@ public:
 
 private slots:
     void on_generateBtn_clicked();
+    void on_exportBtn_clicked();
+
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;

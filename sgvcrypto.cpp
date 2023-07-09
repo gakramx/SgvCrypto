@@ -1,6 +1,6 @@
 #include "sgvcrypto.h"
 #include "./ui_sgvcrypto.h"
-
+#include <QFileDialog>
 SgvCrypto::SgvCrypto(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::SgvCrypto)
@@ -104,3 +104,13 @@ void SgvCrypto::dropEvent(QDropEvent *event)
         event->acceptProposedAction();
     }
 }
+
+void SgvCrypto::on_exportBtn_clicked()
+{
+    QString folderPath = QFileDialog::getExistingDirectory(this, "Select Folder", QDir::homePath());
+    if (!folderPath.isEmpty())
+    {
+        qDebug()<<folderPath;
+    }
+}
+
