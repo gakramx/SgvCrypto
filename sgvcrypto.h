@@ -7,6 +7,8 @@
 #include <QFileInfo>
 #include <QStandardItemModel>
 #include <QtConcurrent>
+#include <QProgressBar>
+#include <QLabel>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class SgvCrypto; }
@@ -34,5 +36,8 @@ protected:
 
 private:
     Ui::SgvCrypto *ui;
+    QProgressBar* progress;
+    QLabel* infoLabel;
+    QLabel* verLabel;
 };
 #endif // SGVCRYPTO_H

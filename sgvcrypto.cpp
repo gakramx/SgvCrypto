@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QFile>
 #include <QMessageBox>
+
 SgvCrypto::SgvCrypto(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::SgvCrypto)
@@ -13,6 +14,24 @@ SgvCrypto::SgvCrypto(QWidget *parent)
 
     ui->setupUi(this);
     setAcceptDrops(true);
+    infoLabel = new QLabel(this);
+    verLabel = new QLabel(this);
+    infoLabel->setText("Ready");
+    infoLabel->setAlignment(Qt::AlignCenter);
+    verLabel->setText("SoneGX ver 0.1");
+    verLabel->setAlignment(Qt::AlignCenter);
+    progress = new QProgressBar(this);
+    progress->setVisible(true);
+    progress->setValue(50);
+    progress->setAlignment(Qt::AlignCenter);
+
+    ui->statusbar->setSizeGripEnabled(false);
+    ui->statusbar->addPermanentWidget(verLabel,1);
+
+    ui->statusbar->addPermanentWidget(progress,1);
+    ui->statusbar->addPermanentWidget(infoLabel,1);
+
+
 
     QStandardItemModel *model = new QStandardItemModel(this);
     model->setColumnCount(4);
@@ -30,8 +49,8 @@ SgvCrypto::SgvCrypto(QWidget *parent)
     ui->tableView->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
     // Set the stretch factor for the second column to make it take up all available width
-   // ui->tableView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-   // ui->tableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    // ui->tableView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    // ui->tableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     ui->tableView->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
 }
 QString SgvCrypto::encrypt(const QString &id){
