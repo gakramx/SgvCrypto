@@ -285,7 +285,7 @@ void SgvCrypto::processFilesRecursive(const QStringList& inputFilePaths, const Q
     });
 
     QString info = QString("%1/%2").arg(currentIndex + 1).arg(rowCount);
-    infoLabel->setText(info);
+    infoLabel->setText("Files : "+info);
 
     // Connect the finished signal of the watcher
     connect(watcher, &QFutureWatcher<bool>::finished, this, [=]() {
@@ -334,11 +334,11 @@ void SgvCrypto::saveProjectFile()
         outputFile.close();
         progressb->setVisible(false);
         infoLabel->setText("Done !");
-        QMessageBox::information(this, "Project File Created", "Project file has been created successfully.");
+        QMessageBox::information(this, "Project Files Created", "Project files has been created successfully.");
 
     }
     else
     {
-        QMessageBox::critical(this, "Error", "Failed to create project file.");
+        QMessageBox::critical(this, "Error", "Failed to create project files.");
     }
 }
