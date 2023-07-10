@@ -147,9 +147,20 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
             QString vbaseName = model->data(model->index(row, 0)).toString();
             QString vName = model->data(model->index(row, 2)).toString();
             QString desc = model->data(model->index(row, 3)).toString();
-
+            // Modify the file extension to ".dat0"
+            QString modifiedVbaseName = vbaseName;
+            QString extension = ".dat0";
+            int dotIndex = modifiedVbaseName.lastIndexOf(".");
+            if (dotIndex != -1)
+            {
+                modifiedVbaseName = modifiedVbaseName.left(dotIndex) + extension;
+            }
+            else
+            {
+                modifiedVbaseName += extension;
+            }
             QJsonObject videoObject;
-            videoObject["vbaseName"] = vbaseName;
+            videoObject["vbaseName"] = modifiedVbaseName;
             videoObject["vName"] = vName;
             videoObject["desc"] = desc;
 
