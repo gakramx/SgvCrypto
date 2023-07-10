@@ -2,10 +2,12 @@
 #define SGVCRYPTO_H
 
 #include <QMainWindow>
- #include <QDragEnterEvent>
- #include <QMimeData>
- #include <QFileInfo>
- #include <QStandardItemModel>
+#include <QDragEnterEvent>
+#include <QMimeData>
+#include <QFileInfo>
+#include <QStandardItemModel>
+#include <QtConcurrent>
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class SgvCrypto; }
 QT_END_NAMESPACE
@@ -17,9 +19,11 @@ class SgvCrypto : public QMainWindow
 public:
     SgvCrypto(QWidget *parent = nullptr);
     ~SgvCrypto();
-     QString encrypt(const QString& id);
+    QString encrypt(const QString& id);
     void createProjectFile(const QString& exportPath);
-
+    QFuture<bool> encryptVideo(const QString& inputFilePath, const QString& outputFilePath,const QByteArray& encryptionKey);
+signals:
+    void encryptionVideoProgressChanged(int progress);
 private slots:
     void on_generateBtn_clicked();
     void on_exportBtn_clicked();
