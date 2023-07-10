@@ -1,11 +1,6 @@
 #include "sgvcrypto.h"
 #include "./ui_sgvcrypto.h"
-#include <QFileDialog>
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QJsonDocument>
-#include <QFile>
-#include <QMessageBox>
+
 
 SgvCrypto::SgvCrypto(QWidget *parent)
     : QMainWindow(parent)
@@ -20,15 +15,15 @@ SgvCrypto::SgvCrypto(QWidget *parent)
     infoLabel->setAlignment(Qt::AlignCenter);
     verLabel->setText("SoneGX ver 0.1");
     verLabel->setAlignment(Qt::AlignCenter);
-    progress = new QProgressBar(this);
-    progress->setVisible(true);
-    progress->setValue(50);
-    progress->setAlignment(Qt::AlignCenter);
+    progressb = new QProgressBar(this);
+    progressb->setVisible(false);
+    // progress->setValue(50);
+    progressb->setAlignment(Qt::AlignCenter);
 
     ui->statusbar->setSizeGripEnabled(false);
     ui->statusbar->addPermanentWidget(verLabel,1);
 
-    ui->statusbar->addPermanentWidget(progress,1);
+    ui->statusbar->addPermanentWidget(progressb,1);
     ui->statusbar->addPermanentWidget(infoLabel,1);
 
 
@@ -140,6 +135,7 @@ void SgvCrypto::on_exportBtn_clicked()
     if (!folderPath.isEmpty())
     {
         qDebug()<<folderPath;
+        m_folderPath=folderPath;
         createProjectFile(folderPath);
     }
 }
@@ -153,19 +149,24 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
     QJsonObject projectObject;
     projectObject["Pack_name"] = projectName;
 
-    // Create a JSON array for the videos
-    QJsonArray videosArray;
-
+    // Clear the videosArray before populating it with new videos
+    videosArray = QJsonArray();
     // Iterate through the rows in the table and add them to the JSON array
     QStandardItemModel* model = qobject_cast<QStandardItemModel*>(ui->tableView->model());
     if (model)
     {
         int rowCount = model->rowCount();
+
+        // Create lists to store the input and output file paths
+        QStringList inputFilePaths;
+        QStringList outputFilePaths;
+
         for (int row = 0; row < rowCount; ++row)
         {
             QString vbaseName = model->data(model->index(row, 0)).toString();
             QString vName = model->data(model->index(row, 2)).toString();
             QString desc = model->data(model->index(row, 3)).toString();
+
             // Modify the file extension to ".dat0"
             QString modifiedVbaseName = vbaseName;
             QString extension = ".dat0";
@@ -178,41 +179,30 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
             {
                 modifiedVbaseName += extension;
             }
+
             QJsonObject videoObject;
             videoObject["vbaseName"] = modifiedVbaseName;
             videoObject["vName"] = vName;
             videoObject["desc"] = desc;
 
             videosArray.append(videoObject);
+
+            // Get the input file path from the table view
+            QString inputFilePath = model->data(model->index(row, 1)).toString();
+
+            // Construct the output file path in the export directory
+            QString outputFilePath = exportPath + "/" + modifiedVbaseName;
+
+            // Add the input and output file paths to the lists
+            inputFilePaths.append(inputFilePath);
+            outputFilePaths.append(outputFilePath);
         }
+
+        // Start processing the files recursively
+        processFilesRecursive(inputFilePaths, outputFilePaths, "1234", 0,rowCount);
     }
 
-    // Add the videos array to the project object
-    projectObject["videos"] = videosArray;
 
-    // Create the JSON document
-    QJsonDocument jsonDoc(projectObject);
-
-    // Convert the JSON document to a string
-    QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Indented);
-
-    // Create the output file path
-    QString filePath = exportPath + "/" + projectName + ".json";
-
-    // Open the file for writing
-    QFile outputFile(filePath);
-    if (outputFile.open(QIODevice::WriteOnly))
-    {
-        // Write the JSON data to the file
-        outputFile.write(jsonData);
-        outputFile.close();
-
-        QMessageBox::information(this, "Project File Created", "Project file has been created successfully.");
-    }
-    else
-    {
-        QMessageBox::critical(this, "Error", "Failed to create project file.");
-    }
 }
 QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QString &outputFilePath, const QByteArray &encryptionKey)
 {
@@ -267,4 +257,88 @@ QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QStrin
 
         return true;
     });
+}
+void SgvCrypto::processFilesRecursive(const QStringList& inputFilePaths, const QStringList& outputFilePaths, const QByteArray& encryptionKey, int index, int rowCount)
+{
+    if (index >= inputFilePaths.size()) {
+        // All files processed, continue with saving project file
+        saveProjectFile();
+        return;
+    }
+    currentIndex = index; // Update the currentIndex
+
+    QString inputFilePath = inputFilePaths.at(index);
+    QString outputFilePath = outputFilePaths.at(index);
+
+    // Encrypt the video asynchronously
+    QFuture<bool> encryptionFuture = encryptVideo(inputFilePath, outputFilePath, encryptionKey);
+
+    // Create a QFutureWatcher to monitor the encryption process
+    QFutureWatcher<bool>* watcher = new QFutureWatcher<bool>(this);
+
+    // Connect the progress signal to update the progress bar and info label
+    connect(this, &SgvCrypto::encryptionVideoProgressChanged, this, [&](int progress) {
+        // Update the progress bar
+        progressb->setVisible(true);
+        progressb->setValue(progress);
+
+    });
+
+    QString info = QString("%1/%2").arg(currentIndex + 1).arg(rowCount);
+    infoLabel->setText(info);
+
+    // Connect the finished signal of the watcher
+    connect(watcher, &QFutureWatcher<bool>::finished, this, [=]() {
+        // Disconnect the progress signal to avoid updating progress of previous files
+        disconnect(this, &SgvCrypto::encryptionVideoProgressChanged, nullptr, nullptr);
+
+        // Clean up the watcher
+        watcher->deleteLater();
+
+        // Move to the next file
+        processFilesRecursive(inputFilePaths, outputFilePaths, encryptionKey, currentIndex + 1,rowCount);
+    });
+
+    // Associate the QFuture with the QFutureWatcher
+    watcher->setFuture(encryptionFuture);
+}
+void SgvCrypto::saveProjectFile()
+{
+
+    // Get the export path from the UI
+    QString exportPath =m_folderPath;
+
+    // Get the project name from projectName_lienEdit
+    QString projectName = ui->projectName_lineEdit->text();
+
+    // Create a JSON object for the project
+    QJsonObject projectObject;
+    projectObject["Pack_name"] = projectName;
+    projectObject["videos"] = videosArray;
+
+    // Create the JSON document
+    QJsonDocument jsonDoc(projectObject);
+
+    // Convert the JSON document to a string
+    QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Indented);
+
+    // Create the output file path
+    QString filePath = exportPath + "/" + projectName + ".json";
+
+    // Open the file for writing
+    QFile outputFile(filePath);
+    if (outputFile.open(QIODevice::WriteOnly))
+    {
+        // Write the JSON data to the file
+        outputFile.write(jsonData);
+        outputFile.close();
+        progressb->setVisible(false);
+        infoLabel->setText("Done !");
+        QMessageBox::information(this, "Project File Created", "Project file has been created successfully.");
+
+    }
+    else
+    {
+        QMessageBox::critical(this, "Error", "Failed to create project file.");
+    }
 }
