@@ -17,16 +17,12 @@ SgvCrypto::SgvCrypto(QWidget *parent)
     verLabel->setAlignment(Qt::AlignCenter);
     progressb = new QProgressBar(this);
     progressb->setVisible(false);
-    // progress->setValue(50);
     progressb->setAlignment(Qt::AlignCenter);
 
     ui->statusbar->setSizeGripEnabled(false);
     ui->statusbar->addPermanentWidget(verLabel,1);
-
     ui->statusbar->addPermanentWidget(progressb,1);
     ui->statusbar->addPermanentWidget(infoLabel,1);
-
-
 
     QStandardItemModel *model = new QStandardItemModel(this);
     model->setColumnCount(4);
@@ -323,7 +319,7 @@ void SgvCrypto::saveProjectFile()
     QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Indented);
 
     // Create the output file path
-    QString filePath = exportPath + "/" + projectName + ".json";
+    QString filePath = exportPath + "/" + projectName + ".sngv";
 
     // Open the file for writing
     QFile outputFile(filePath);

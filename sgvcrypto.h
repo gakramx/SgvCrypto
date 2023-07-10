@@ -47,7 +47,7 @@ private:
     QLabel* infoLabel;
     QLabel* verLabel;
     QString m_folderPath;
-    QJsonArray videosArray; // Declare videosArray as a member variable
-    int currentIndex = 0; // Initialize currentIndex to 0
+    QJsonArray videosArray;
+    int currentIndex = 0;
 };
 #endif // SGVCRYPTO_H
