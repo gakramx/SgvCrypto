@@ -1,6 +1,11 @@
 #include "sgvcrypto.h"
 #include "./ui_sgvcrypto.h"
 #include <QFileDialog>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QFile>
+#include <QMessageBox>
 SgvCrypto::SgvCrypto(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::SgvCrypto)
@@ -10,9 +15,11 @@ SgvCrypto::SgvCrypto(QWidget *parent)
     setAcceptDrops(true);
 
     QStandardItemModel *model = new QStandardItemModel(this);
-    model->setColumnCount(2); // Set the number of columns to 2
-    model->setHeaderData(0, Qt::Horizontal, "Name"); // Set the header for the first column
-    model->setHeaderData(1, Qt::Horizontal, "Path"); // Set the header for the second column
+    model->setColumnCount(4);
+    model->setHeaderData(0, Qt::Horizontal, "File name");
+    model->setHeaderData(1, Qt::Horizontal, "Path");
+    model->setHeaderData(2, Qt::Horizontal, "Video name"); // New column
+    model->setHeaderData(3, Qt::Horizontal, "Description"); // New column
     ui->tableView->setModel(model);
 
     ui->tableView->setDragEnabled(true); // Enable drag
@@ -23,8 +30,9 @@ SgvCrypto::SgvCrypto(QWidget *parent)
     ui->tableView->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
     // Set the stretch factor for the second column to make it take up all available width
-    ui->tableView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    ui->tableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+   // ui->tableView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+   // ui->tableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    ui->tableView->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
 }
 QString SgvCrypto::encrypt(const QString &id){
     // Get the prefix and suffix of the ID
@@ -91,13 +99,15 @@ void SgvCrypto::dropEvent(QDropEvent *event)
                 QString fileName = QFileInfo(fileUrl.toLocalFile()).fileName();
                 QString filePath = fileUrl.toLocalFile();
 
-                // Create QStandardItem for each file and set the data
+                // Create QStandardItem for each column and set the data
                 QStandardItem *nameItem = new QStandardItem(fileName);
                 QStandardItem *pathItem = new QStandardItem(filePath);
+                QStandardItem *videoNameItem = new QStandardItem(); // New column
+                QStandardItem *descriptionItem = new QStandardItem(); // New column
 
                 // Add the items to the model
                 QList<QStandardItem*> rowItems;
-                rowItems << nameItem << pathItem;
+                rowItems << nameItem << pathItem << videoNameItem << descriptionItem; // Add the new items
                 model->appendRow(rowItems);
             }
         }
@@ -111,6 +121,67 @@ void SgvCrypto::on_exportBtn_clicked()
     if (!folderPath.isEmpty())
     {
         qDebug()<<folderPath;
+        createProjectFile(folderPath);
+    }
+}
+
+void SgvCrypto::createProjectFile(const QString& exportPath)
+{
+    // Get the project name from projectName_lienEdit
+    QString projectName = ui->projectName_lineEdit->text();
+
+    // Create a JSON object for the project
+    QJsonObject projectObject;
+    projectObject["Pack_name"] = projectName;
+
+    // Create a JSON array for the videos
+    QJsonArray videosArray;
+
+    // Iterate through the rows in the table and add them to the JSON array
+    QStandardItemModel* model = qobject_cast<QStandardItemModel*>(ui->tableView->model());
+    if (model)
+    {
+        int rowCount = model->rowCount();
+        for (int row = 0; row < rowCount; ++row)
+        {
+            QString vbaseName = model->data(model->index(row, 0)).toString();
+            QString vName = model->data(model->index(row, 2)).toString();
+            QString desc = model->data(model->index(row, 3)).toString();
+
+            QJsonObject videoObject;
+            videoObject["vbaseName"] = vbaseName;
+            videoObject["vName"] = vName;
+            videoObject["desc"] = desc;
+
+            videosArray.append(videoObject);
+        }
+    }
+
+    // Add the videos array to the project object
+    projectObject["videos"] = videosArray;
+
+    // Create the JSON document
+    QJsonDocument jsonDoc(projectObject);
+
+    // Convert the JSON document to a string
+    QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Indented);
+
+    // Create the output file path
+    QString filePath = exportPath + "/" + projectName + ".json";
+
+    // Open the file for writing
+    QFile outputFile(filePath);
+    if (outputFile.open(QIODevice::WriteOnly))
+    {
+        // Write the JSON data to the file
+        outputFile.write(jsonData);
+        outputFile.close();
+
+        QMessageBox::information(this, "Project File Created", "Project file has been created successfully.");
+    }
+    else
+    {
+        QMessageBox::critical(this, "Error", "Failed to create project file.");
     }
 }
 

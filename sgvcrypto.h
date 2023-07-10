@@ -18,6 +18,7 @@ public:
     SgvCrypto(QWidget *parent = nullptr);
     ~SgvCrypto();
      QString encrypt(const QString& id);
+    void createProjectFile(const QString& exportPath);
 
 private slots:
     void on_generateBtn_clicked();
