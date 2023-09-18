@@ -46,6 +46,7 @@ SgvCrypto::SgvCrypto(QWidget *parent)
 }
 QString SgvCrypto::encrypt(const QString &id){
     // Get the prefix and suffix of the ID
+    qDebug() << " SgvCrypto::encrypt ";
     QString prefix = id.left(4);
     QString suffix = id.right(4);
 
@@ -138,6 +139,7 @@ void SgvCrypto::on_exportBtn_clicked()
 
 void SgvCrypto::createProjectFile(const QString& exportPath)
 {
+    qDebug() << " createProjectFile";
     // Get the project name from projectName_lienEdit
     QString projectName = ui->projectName_lineEdit->text();
 
@@ -204,6 +206,7 @@ QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QStrin
 {
 
     return QtConcurrent::run([this,inputFilePath, outputFilePath, encryptionKey]() {
+        qDebug() << " encryptVideo";
         QUrl url(inputFilePath);
         QString local_inputFilePath = url.isLocalFile() ? url.toLocalFile() : inputFilePath;
         qDebug()<<"FILES : "<<local_inputFilePath;
@@ -256,6 +259,7 @@ QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QStrin
 }
 void SgvCrypto::processFilesRecursive(const QStringList& inputFilePaths, const QStringList& outputFilePaths, const QByteArray& encryptionKey, int index, int rowCount)
 {
+    qDebug() << " processFilesRecursive";
     if (index >= inputFilePaths.size()) {
         // All files processed, continue with saving project file
         saveProjectFile();
@@ -300,7 +304,7 @@ void SgvCrypto::processFilesRecursive(const QStringList& inputFilePaths, const Q
 }
 void SgvCrypto::saveProjectFile()
 {
-
+    qDebug() << " saveProjectFile";
     // Get the export path from the UI
     QString exportPath =m_folderPath;
 
