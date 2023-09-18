@@ -165,8 +165,8 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
             QString vName = model->data(model->index(row, 2)).toString();
             QString desc = model->data(model->index(row, 3)).toString();
 
-            // Remove spaces and use underscores instead
-            QString modifiedVbaseName = vbaseName.replace(" ", "_");
+            // Modify the file extension to ".dat0"
+            QString modifiedVbaseName = vbaseName;
             QString extension = ".dat0";
             int dotIndex = modifiedVbaseName.lastIndexOf(".");
             if (dotIndex != -1)
