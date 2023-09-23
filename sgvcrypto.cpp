@@ -204,9 +204,11 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
 }
 QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QString &outputFilePath, const QByteArray &encryptionKey)
 {
-
     return QtConcurrent::run([=]() -> bool {
-        QFile inputFile(inputFilePath);
+        QUrl url(inputFilePath);
+        QString local_inputFilePath = url.isLocalFile() ? url.toLocalFile() : inputFilePath;
+        qDebug()<<"FILES : "<<local_inputFilePath;
+        QFile inputFile(local_inputFilePath);
         QFile outputFile(outputFilePath);
 
         if (!inputFile.open(QIODevice::ReadOnly)) {
