@@ -205,35 +205,33 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
 QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QString &outputFilePath, const QByteArray &encryptionKey)
 {
 
-    return QtConcurrent::run([this,inputFilePath, outputFilePath, encryptionKey]() {
-        qDebug() << " encryptVideo";
-        QUrl url(inputFilePath);
-        QString local_inputFilePath = url.isLocalFile() ? url.toLocalFile() : inputFilePath;
-        qDebug()<<"FILES : "<<local_inputFilePath;
-        QFile inputFile(local_inputFilePath);
+    return QtConcurrent::run([=]() -> bool {
+        QFile inputFile(inputFilePath);
         QFile outputFile(outputFilePath);
 
         if (!inputFile.open(QIODevice::ReadOnly)) {
-            // Failed to open input file
+            qDebug() << "Failed to open input file:" << inputFile.errorString();
             return false;
         }
+
         if (!outputFile.open(QIODevice::WriteOnly)) {
-            // Failed to open output file
+            qDebug() << "Failed to open output file:" << outputFile.errorString();
             inputFile.close();
             return false;
         }
 
+        const int bufferSize = 1024 * 1024; // 1MB
+        QByteArray buffer;
+        buffer.resize(bufferSize);
+
+        int keyLength = encryptionKey.length();
+        int keyIndex = 0;
 
         qint64 totalBytes = inputFile.size();
         qint64 bytesProcessed = 0;
 
-        const int bufferSize = 1024 * 1024; // 1MB
-        char buffer[bufferSize];
-
-        int keyLength = encryptionKey.length();
-        int keyIndex = 0;
         while (!inputFile.atEnd()) {
-            qint64 bytesRead = inputFile.read(buffer, bufferSize);
+            qint64 bytesRead = inputFile.read(buffer.data(), buffer.size());
 
             for (qint64 i = 0; i < bytesRead; ++i) {
                 buffer[i] = buffer[i] ^ encryptionKey[keyIndex];
@@ -244,13 +242,19 @@ QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QStrin
                 }
             }
 
-            outputFile.write(buffer, bytesRead);
+            qint64 bytesWritten = outputFile.write(buffer.data(), bytesRead);
+            if (bytesWritten == -1) {
+                qDebug() << "Error writing to output file:" << outputFile.errorString();
+                inputFile.close();
+                outputFile.close();
+                return false;
+            }
 
             bytesProcessed += bytesRead;
             int progress = static_cast<int>((bytesProcessed * 100) / totalBytes);
-            qDebug() << "Encryption progress:" << progress << "%";
             emit encryptionVideoProgressChanged(progress);
         }
+
         outputFile.close();
         inputFile.close();
 
