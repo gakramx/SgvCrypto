@@ -1,6 +1,7 @@
 #include "sgvcrypto.h"
 #include "./ui_sgvcrypto.h"
 
+#include <iostream>
 
 SgvCrypto::SgvCrypto(QWidget *parent)
     : QMainWindow(parent)
@@ -24,25 +25,43 @@ SgvCrypto::SgvCrypto(QWidget *parent)
     ui->statusbar->addPermanentWidget(progressb,1);
     ui->statusbar->addPermanentWidget(infoLabel,1);
 
-    QStandardItemModel *model = new QStandardItemModel(this);
+    model = new QStandardItemModel(this);
     model->setColumnCount(4);
     model->setHeaderData(0, Qt::Horizontal, "File name");
     model->setHeaderData(1, Qt::Horizontal, "Path");
     model->setHeaderData(2, Qt::Horizontal, "Video name"); // New column
     model->setHeaderData(3, Qt::Horizontal, "Description"); // New column
-    ui->tableView->setModel(model);
 
+    ui->tableView->setModel(model);
+    // Set edit triggers to AnyKeyPressed for the "Action" column
+
+    // Set edit triggers to DoubleClicked for the rest of the columns
+    //   ui->tableView->setEditTriggers(QAbstractItemView::DoubleClicked);
     ui->tableView->setDragEnabled(true); // Enable drag
     ui->tableView->setAcceptDrops(true); // Enable drop
     ui->tableView->setDropIndicatorShown(true);
     ui->tableView->setDefaultDropAction(Qt::MoveAction);
     ui->tableView->setDragDropMode(QAbstractItemView::InternalMove);
     ui->tableView->setSelectionMode(QAbstractItemView::ExtendedSelection);
-
+    ui->tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
     // Set the stretch factor for the second column to make it take up all available width
     // ui->tableView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     // ui->tableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     ui->tableView->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+
+
+    progressTimer = new QTimer(this);
+    progressTimer->setInterval(100);  // Check progress every 500 milliseconds
+
+    connect(this, &SgvCrypto::startTimerSignal, progressTimer, [=]() {
+        qDebug()<<"START";
+        progressTimer->start();
+    });
+    connect(this, &SgvCrypto::stopTimerSignal, progressTimer, [=]() {
+        qDebug()<<"STOP";
+        progressTimer->stop();
+    });
+
 }
 QString SgvCrypto::encrypt(const QString &id){
     // Get the prefix and suffix of the ID
@@ -165,7 +184,7 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
 
             // Remove spaces and use underscores instead
             QString modifiedVbaseName = vbaseName.replace(" ", "_");
-            QString extension = ".dat0";
+            QString extension = ".mp4";
             int dotIndex = modifiedVbaseName.lastIndexOf(".");
             if (dotIndex != -1)
             {
@@ -195,74 +214,50 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
         }
 
         // Start processing the files recursively
-        processFilesRecursive(inputFilePaths, outputFilePaths, "1234", 0,rowCount);
+        processFilesRecursive(inputFilePaths, outputFilePaths, 0,rowCount);
     }
 
 
 }
-QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QString &outputFilePath, const QByteArray &encryptionKey)
+QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QString &outputFilePath)
 {
 
     return QtConcurrent::run([=]() -> bool {
-        QUrl url(inputFilePath);
-        QString local_inputFilePath = url.isLocalFile() ? url.toLocalFile() : inputFilePath;
-        qDebug()<<"FILES : "<<local_inputFilePath;
-        QFile inputFile(local_inputFilePath);
-        QFile outputFile(outputFilePath);
 
-        if (!inputFile.open(QIODevice::ReadOnly)) {
-            qDebug() << "Failed to open input file:" << inputFile.errorString();
-            return false;
+        qDebug() << "Starting encryption...";
+
+        QByteArray inputFilePathUtf = inputFilePath.toUtf8();
+        const char* gf_inputFilePathUtf = inputFilePathUtf.constData();
+        qDebug()<<"Input file : "<<gf_inputFilePathUtf;
+
+        GF_ISOFile *infile = gf_isom_open(gf_inputFilePathUtf, GF_ISOM_OPEN_READ, 0);
+
+        if (!infile || gf_isom_last_error(infile) != GF_OK) {
+            qDebug() << "Error opening input file or file not found";
+            return 1;
+        }
+        // Encrypt the video file
+        QByteArray outputFilePathUtf = outputFilePath.toUtf8();
+        const char* gf_outputFilePathUtf = outputFilePathUtf.constData();
+        qDebug()<<"gf_outputFilePathUtf file : "<<outputFilePathUtf;
+        const char *drm_file = "drm_file.xml";  // Assuming no DRM configuration needed
+        emit startTimerSignal();
+        GF_Err err = gf_crypt_file(infile, drm_file, gf_outputFilePathUtf, 0.0, 1);
+        emit stopTimerSignal();
+        if (err != GF_OK) {
+            qDebug() << "Error encrypting file. Error code: " << err;
+            qDebug() << "ISO file last error: " << gf_isom_last_error(infile);
+            gf_isom_close(infile);
+            return 1;
         }
 
-        if (!outputFile.open(QIODevice::WriteOnly)) {
-            qDebug() << "Failed to open output file:" << outputFile.errorString();
-            inputFile.close();
-            return false;
-        }
-
-        const int bufferSize = 1024 * 1024; // 1MB
-        QByteArray buffer;
-        buffer.resize(bufferSize);
-
-        int keyLength = encryptionKey.length();
-        int keyIndex = 0;
-
-        qint64 totalBytes = inputFile.size();
-        qint64 bytesProcessed = 0;
-
-        while (!inputFile.atEnd()) {
-            qint64 bytesRead = inputFile.read(buffer.data(), buffer.size());
-
-            for (qint64 i = 0; i < bytesRead; ++i) {
-                buffer[i] = buffer[i] ^ encryptionKey[keyIndex];
-
-                keyIndex++;
-                if (keyIndex == keyLength) {
-                    keyIndex = 0;
-                }
-            }
-
-            qint64 bytesWritten = outputFile.write(buffer.data(), bytesRead);
-            if (bytesWritten == -1) {
-                qDebug() << "Error writing to output file:" << outputFile.errorString();
-                inputFile.close();
-                outputFile.close();
-                return false;
-            }
-
-            bytesProcessed += bytesRead;
-            int progress = static_cast<int>((bytesProcessed * 100) / totalBytes);
-            emit encryptionVideoProgressChanged(progress);
-        }
-
-        outputFile.close();
-        inputFile.close();
+        // Clean up
+        gf_isom_close(infile);
 
         return true;
     });
 }
-void SgvCrypto::processFilesRecursive(const QStringList& inputFilePaths, const QStringList& outputFilePaths, const QByteArray& encryptionKey, int index, int rowCount)
+void SgvCrypto::processFilesRecursive(const QStringList& inputFilePaths, const QStringList& outputFilePaths, int index, int rowCount)
 {
     if (index >= inputFilePaths.size()) {
         // All files processed, continue with saving project file
@@ -274,8 +269,48 @@ void SgvCrypto::processFilesRecursive(const QStringList& inputFilePaths, const Q
     QString inputFilePath = inputFilePaths.at(index);
     QString outputFilePath = outputFilePaths.at(index);
 
+
+
+    QFileSystemWatcher* fileWatcher = new QFileSystemWatcher();
+    fileWatcher->addPath(outputFilePath);
+
+    connect(progressTimer, &QTimer::timeout, [=]() {
+        qint64 inputfileSize;
+        qint64 lastProgress = 0;
+        QFileInfo inputFileInfo(inputFilePath);
+        // QFileInfo outputFileInfo(outputFilePath); // Don't need this here
+
+        if (inputFileInfo.exists()) {
+            inputfileSize = inputFileInfo.size();
+        } else {
+            qDebug() << "Input file not found info";
+        }
+
+        QList<QString> modifiedFiles = fileWatcher->files();
+        if (modifiedFiles.contains(outputFilePath)) {
+            QFileInfo outputFileInfo(outputFilePath);
+
+            qint64 currentSize = outputFileInfo.size();
+
+            int percentage = (currentSize * 100) / inputfileSize;
+            if (percentage > lastProgress) {
+                qDebug() << "\rProgress: " << percentage << "%";
+                emit encryptionVideoProgressChanged(percentage);
+                lastProgress = percentage;
+            }
+        } else {
+            qDebug() << "Output file not found info";
+        }
+    });
+
+    // Connect slot for fileChanged signal
+    QObject::connect(fileWatcher, &QFileSystemWatcher::fileChanged, [=](const QString& path) {
+        //   qDebug() << "File changed: " << path;
+        // You can handle file changes here
+    });
+
     // Encrypt the video asynchronously
-    QFuture<bool> encryptionFuture = encryptVideo(inputFilePath, outputFilePath, encryptionKey);
+    QFuture<bool> encryptionFuture = encryptVideo(inputFilePath, outputFilePath);
 
     // Create a QFutureWatcher to monitor the encryption process
     QFutureWatcher<bool>* watcher = new QFutureWatcher<bool>(this);
@@ -300,7 +335,7 @@ void SgvCrypto::processFilesRecursive(const QStringList& inputFilePaths, const Q
         watcher->deleteLater();
 
         // Move to the next file
-        processFilesRecursive(inputFilePaths, outputFilePaths, encryptionKey, currentIndex + 1,rowCount);
+        processFilesRecursive(inputFilePaths, outputFilePaths, currentIndex + 1,rowCount);
     });
 
     // Associate the QFuture with the QFutureWatcher
@@ -346,3 +381,56 @@ void SgvCrypto::saveProjectFile()
         QMessageBox::critical(this, "Error", "Failed to create project files.");
     }
 }
+
+void SgvCrypto::on_moveUpBtn_clicked()
+{
+    QModelIndexList selectedIndexes = ui->tableView->selectionModel()->selectedRows();
+
+    // Move selected rows up
+    for (const QModelIndex &index : selectedIndexes) {
+        int row = index.row();
+        if (row > 0) {
+            // Swap with the row above
+            model->insertRow(row - 1, model->takeRow(row));
+        }
+    }
+
+    // Restore selection
+    for (const QModelIndex &index : selectedIndexes) {
+        int row = index.row();
+        ui->tableView->selectRow(row - 1);
+    }
+}
+
+
+void SgvCrypto::on_moveDownBtn_clicked()
+{
+    QModelIndexList selectedIndexes = ui->tableView->selectionModel()->selectedRows();
+
+    // Move selected rows down
+    for (const QModelIndex &index : selectedIndexes) {
+        int row = index.row();
+        if (row < model->rowCount() - 1) {
+            // Swap with the row below
+            model->insertRow(row + 1, model->takeRow(row));
+        }
+    }
+
+    // Restore selection
+    for (const QModelIndex &index : selectedIndexes) {
+        int row = index.row();
+        ui->tableView->selectRow(row + 1);
+    }
+}
+
+
+void SgvCrypto::on_deleteRowBtn_clicked()
+{
+    QModelIndexList selectedIndexes = ui->tableView->selectionModel()->selectedRows();
+
+    // Delete selected rows
+    for (const QModelIndex &index : selectedIndexes) {
+        model->removeRow(index.row());
+    }
+}
+

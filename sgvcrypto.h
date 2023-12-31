@@ -15,6 +15,12 @@
 #include <QJsonDocument>
 #include <QFile>
 #include <QMessageBox>
+#include <QTimer>
+#include <gpac/isomedia.h>
+#include <gpac/constants.h>
+#include <gpac/crypt.h>
+#include <gpac/crypt_tools.h>
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class SgvCrypto; }
 QT_END_NAMESPACE
@@ -28,14 +34,20 @@ public:
     ~SgvCrypto();
     QString encrypt(const QString& id);
     void createProjectFile(const QString& exportPath);
-    QFuture<bool> encryptVideo(const QString& inputFilePath, const QString& outputFilePath,const QByteArray& encryptionKey);
-    void processFilesRecursive(const QStringList& inputFilePaths, const QStringList& outputFilePaths, const QByteArray& encryptionKey, int index,int rowCount);
+    QFuture<bool> encryptVideo(const QString& inputFilePath, const QString& outputFilePath);
+    void processFilesRecursive(const QStringList& inputFilePaths, const QStringList& outputFilePaths, int index,int rowCount);
     void  saveProjectFile();
 signals:
     void encryptionVideoProgressChanged(int progress);
+    void startTimerSignal();
+    void stopTimerSignal();
 private slots:
     void on_generateBtn_clicked();
     void on_exportBtn_clicked();
+    void on_moveUpBtn_clicked();
+void on_moveDownBtn_clicked();
+
+    void on_deleteRowBtn_clicked();
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -49,5 +61,7 @@ private:
     QString m_folderPath;
     QJsonArray videosArray;
     int currentIndex = 0;
+    QTimer* progressTimer;
+    QStandardItemModel *model;
 };
 #endif // SGVCRYPTO_H

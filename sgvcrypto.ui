@@ -76,17 +76,25 @@
           <widget class="QLineEdit" name="projectName_lineEdit"/>
          </item>
          <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+          <widget class="QPushButton" name="moveUpBtn">
+           <property name="text">
+            <string>Move UP</string>
            </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="moveDownBtn">
+           <property name="text">
+            <string>Move Down</string>
            </property>
-          </spacer>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="deleteRowBtn">
+           <property name="text">
+            <string>Delete</string>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>
