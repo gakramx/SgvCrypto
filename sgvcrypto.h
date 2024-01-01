@@ -50,6 +50,7 @@ private slots:
     void on_deleteRowBtn_clicked();
     void openProject();
     void saveProject();
+    void saveAsProject();
     void exportProject();
     bool readProjectFile(const QString& filePath);
     bool writeProjectFile(const QString& filePath);

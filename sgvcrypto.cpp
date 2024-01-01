@@ -69,6 +69,9 @@ SgvCrypto::SgvCrypto(QWidget *parent)
     QAction* saveAction = new QAction(tr("&Save"), this);
     connect(saveAction, &QAction::triggered, this, &SgvCrypto::saveProject);
     fileMenu->addAction(saveAction);
+    QAction* saveAsAction = new QAction(tr("Save &As..."), this);
+    connect(saveAsAction, &QAction::triggered, this, &SgvCrypto::saveAsProject);
+    fileMenu->addAction(saveAsAction);
 
     QAction* exportAction = new QAction(tr("&Export"), this);
     connect(exportAction, &QAction::triggered, this, &SgvCrypto::exportProject);
@@ -466,6 +469,20 @@ void SgvCrypto::saveProject()
     }
 }
 
+void SgvCrypto::saveAsProject()
+{
+    QString filePath = QFileDialog::getSaveFileName(this, "Save Project File", QDir::homePath(), "Project Files (*.sngvproject)");
+
+    if (!filePath.isEmpty()) {
+        // Save the project file
+        if (writeProjectFile(filePath)) {
+            currentProjectFilePath = filePath;
+            QMessageBox::information(this, "Save Project", "Project saved successfully.");
+        } else {
+            QMessageBox::warning(this, "Save Project", "Failed to save the project.");
+        }
+    }
+}
 void SgvCrypto::exportProject()
 {
     QString folderPath = QFileDialog::getExistingDirectory(this, "Select Folder", QDir::homePath());
