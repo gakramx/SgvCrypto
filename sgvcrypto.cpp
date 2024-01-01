@@ -1,8 +1,6 @@
 #include "sgvcrypto.h"
 #include "./ui_sgvcrypto.h"
 
-#include <iostream>
-
 SgvCrypto::SgvCrypto(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::SgvCrypto)
@@ -62,6 +60,19 @@ SgvCrypto::SgvCrypto(QWidget *parent)
         progressTimer->stop();
     });
 
+    fileMenu = menuBar()->addMenu(tr("&File"));
+
+    QAction* openAction = new QAction(tr("&Open"), this);
+    connect(openAction, &QAction::triggered, this, &SgvCrypto::openProject);
+    fileMenu->addAction(openAction);
+
+    QAction* saveAction = new QAction(tr("&Save"), this);
+    connect(saveAction, &QAction::triggered, this, &SgvCrypto::saveProject);
+    fileMenu->addAction(saveAction);
+
+    QAction* exportAction = new QAction(tr("&Export"), this);
+    connect(exportAction, &QAction::triggered, this, &SgvCrypto::exportProject);
+    fileMenu->addAction(exportAction);
 }
 QString SgvCrypto::encrypt(const QString &id){
     // Get the prefix and suffix of the ID
@@ -155,7 +166,7 @@ void SgvCrypto::on_exportBtn_clicked()
     }
 }
 
-void SgvCrypto::createProjectFile(const QString& exportPath)
+bool SgvCrypto::createProjectFile(const QString& exportPath)
 {
     // Get the project name from projectName_lienEdit
     QString projectName = ui->projectName_lineEdit->text();
@@ -182,21 +193,9 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
             QString vName = model->data(model->index(row, 2)).toString();
             QString desc = model->data(model->index(row, 3)).toString();
 
-            // Remove spaces and use underscores instead
-            QString modifiedVbaseName = vbaseName.replace(" ", "_");
-            QString extension = ".mp4";
-            int dotIndex = modifiedVbaseName.lastIndexOf(".");
-            if (dotIndex != -1)
-            {
-                modifiedVbaseName = modifiedVbaseName.left(dotIndex) + extension;
-            }
-            else
-            {
-                modifiedVbaseName += extension;
-            }
 
             QJsonObject videoObject;
-            videoObject["vbaseName"] = modifiedVbaseName;
+            videoObject["vbaseName"] = vbaseName;
             videoObject["vName"] = vName;
             videoObject["desc"] = desc;
 
@@ -206,7 +205,7 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
             QString inputFilePath = model->data(model->index(row, 1)).toString();
 
             // Construct the output file path in the export directory
-            QString outputFilePath = exportPath + "/" + modifiedVbaseName;
+            QString outputFilePath = exportPath + "/" + vbaseName;
 
             // Add the input and output file paths to the lists
             inputFilePaths.append(inputFilePath);
@@ -217,7 +216,7 @@ void SgvCrypto::createProjectFile(const QString& exportPath)
         processFilesRecursive(inputFilePaths, outputFilePaths, 0,rowCount);
     }
 
-
+    return true;
 }
 QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QString &outputFilePath)
 {
@@ -432,5 +431,148 @@ void SgvCrypto::on_deleteRowBtn_clicked()
     for (const QModelIndex &index : selectedIndexes) {
         model->removeRow(index.row());
     }
+}
+
+
+void SgvCrypto::openProject()
+{
+    QString filePath = QFileDialog::getOpenFileName(this, "Open Project File", QDir::homePath(), "Project Files (*.sngvproject)");
+
+    if (!filePath.isEmpty()) {
+        // Read the project file and populate the UI
+        if (readProjectFile(filePath)) {
+            currentProjectFilePath = filePath;
+            QMessageBox::information(this, "Open Project", "Project opened successfully.");
+        } else {
+            QMessageBox::warning(this, "Open Project", "Failed to open the project.");
+        }
+    }
+}
+
+void SgvCrypto::saveProject()
+{
+    if (currentProjectFilePath.isEmpty()) {
+        // If no project file is open, ask for a new file path
+        currentProjectFilePath = QFileDialog::getSaveFileName(this, "Save Project File", QDir::homePath(), "Project Files (*.sngvproject)");
+    }
+
+    if (!currentProjectFilePath.isEmpty()) {
+        // Save the project file
+        if (writeProjectFile(currentProjectFilePath)) {
+            QMessageBox::information(this, "Save Project", "Project saved successfully.");
+        } else {
+            QMessageBox::warning(this, "Save Project", "Failed to save the project.");
+        }
+    }
+}
+
+void SgvCrypto::exportProject()
+{
+    QString folderPath = QFileDialog::getExistingDirectory(this, "Select Folder", QDir::homePath());
+    if (!folderPath.isEmpty()) {
+        // Export the project files and encrypt videos
+        m_folderPath = folderPath;
+        if (createProjectFile(folderPath)) {
+            QMessageBox::information(this, "Export Project", "Project exported successfully.");
+        } else {
+            QMessageBox::warning(this, "Export Project", "Failed to export the project.");
+        }
+    }
+}
+
+bool SgvCrypto::readProjectFile(const QString& filePath)
+{
+    // Implement the logic to read and populate the UI from the project file
+    // Example: Open the project file, parse the JSON, and populate the UI
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Failed to open project file: " << filePath;
+        return false;
+    }
+
+    QByteArray jsonData = file.readAll();
+    file.close();
+
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(jsonData);
+    if (jsonDoc.isNull() || !jsonDoc.isObject()) {
+        qDebug() << "Invalid JSON format in the project file.";
+        return false;
+    }
+
+    QJsonObject projectObject = jsonDoc.object();
+
+    // Populate UI elements based on projectObject values
+    ui->projectName_lineEdit->setText(projectObject.value("Pack_name").toString());
+
+    // Clear the existing data in the table
+    model->removeRows(0, model->rowCount());
+
+    QJsonArray videosArray = projectObject.value("videos").toArray();
+    for (int i = 0; i < videosArray.size(); ++i) {
+        QJsonObject videoObject = videosArray.at(i).toObject();
+
+        QString vbaseName = videoObject.value("vbaseName").toString();
+        QString vName = videoObject.value("vName").toString();
+        QString desc = videoObject.value("desc").toString();
+
+        // Extract file name and path from vbaseName
+        QFileInfo fileInfo(vbaseName);
+        QString fileName = fileInfo.fileName();
+
+
+        // Create QStandardItem for each column and set the data
+        QStandardItem* nameItem = new QStandardItem(fileName);
+        QStandardItem* pathItem = new QStandardItem(vbaseName);
+        QStandardItem* videoNameItem = new QStandardItem(vName);
+        QStandardItem* descriptionItem = new QStandardItem(desc);
+        // Add the items to the model
+        QList<QStandardItem*> rowItems;
+        rowItems << nameItem << pathItem << videoNameItem << descriptionItem;
+        model->appendRow(rowItems);
+    }
+
+    return true;
+}
+
+bool SgvCrypto::writeProjectFile(const QString& filePath)
+{
+    // Implement the logic to save the project file
+    // Example: Create a JSON object, populate it from UI elements, and save to the file
+
+    QJsonObject projectObject;
+    projectObject["Pack_name"] = ui->projectName_lineEdit->text();
+
+    QJsonArray videosArray;
+
+    for (int row = 0; row < model->rowCount(); ++row) {
+        QJsonObject videoObject;
+
+
+        videoObject["vbaseName"] = model->data(model->index(row, 1)).toString();
+        videoObject["vName"] = model->data(model->index(row, 2)).toString();
+        videoObject["desc"] = model->data(model->index(row, 3)).toString();
+
+        videosArray.append(videoObject);
+    }
+
+    projectObject["videos"] = videosArray;
+
+    QJsonDocument jsonDoc(projectObject);
+    QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Indented);
+    QString nonConstFilePath = filePath;  // Create a non-const copy
+     if (!nonConstFilePath.endsWith(".sngvproject", Qt::CaseInsensitive)) {
+        nonConstFilePath += ".sngvproject";
+    }
+    QFile file(nonConstFilePath);  // Change this line
+    if (!file.open(QIODevice::WriteOnly)) {
+        qDebug() << "Failed to open project file for writing: " << filePath;
+        return false;
+    }
+
+    file.write(jsonData);
+    file.close();
+
+    return true;
 }
 

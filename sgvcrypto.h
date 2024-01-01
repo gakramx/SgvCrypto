@@ -33,7 +33,7 @@ public:
     SgvCrypto(QWidget *parent = nullptr);
     ~SgvCrypto();
     QString encrypt(const QString& id);
-    void createProjectFile(const QString& exportPath);
+    bool createProjectFile(const QString& exportPath);
     QFuture<bool> encryptVideo(const QString& inputFilePath, const QString& outputFilePath);
     void processFilesRecursive(const QStringList& inputFilePaths, const QStringList& outputFilePaths, int index,int rowCount);
     void  saveProjectFile();
@@ -45,9 +45,14 @@ private slots:
     void on_generateBtn_clicked();
     void on_exportBtn_clicked();
     void on_moveUpBtn_clicked();
-void on_moveDownBtn_clicked();
+    void on_moveDownBtn_clicked();
 
     void on_deleteRowBtn_clicked();
+    void openProject();
+    void saveProject();
+    void exportProject();
+    bool readProjectFile(const QString& filePath);
+    bool writeProjectFile(const QString& filePath);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -63,5 +68,8 @@ private:
     int currentIndex = 0;
     QTimer* progressTimer;
     QStandardItemModel *model;
+    QString currentProjectFilePath;  // To store the path of the currently open project file
+        QMenu* fileMenu;  // File menu
+
 };
 #endif // SGVCRYPTO_H
