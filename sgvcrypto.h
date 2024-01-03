@@ -20,7 +20,7 @@
 #include <gpac/constants.h>
 #include <gpac/crypt.h>
 #include <gpac/crypt_tools.h>
-
+#include <QPlainTextEdit>
 QT_BEGIN_NAMESPACE
 namespace Ui { class SgvCrypto; }
 QT_END_NAMESPACE
@@ -54,6 +54,7 @@ private slots:
     void exportProject();
     bool readProjectFile(const QString& filePath);
     bool writeProjectFile(const QString& filePath);
+    void onTableDoubleClicked(const QModelIndex &index);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;

@@ -60,6 +60,7 @@ SgvCrypto::SgvCrypto(QWidget *parent)
         progressTimer->stop();
     });
 
+    connect(ui->tableView, &QTableView::doubleClicked, this, &SgvCrypto::onTableDoubleClicked);
     fileMenu = menuBar()->addMenu(tr("&File"));
 
     QAction* openAction = new QAction(tr("&Open"), this);
@@ -76,6 +77,7 @@ SgvCrypto::SgvCrypto(QWidget *parent)
     QAction* exportAction = new QAction(tr("&Export"), this);
     connect(exportAction, &QAction::triggered, this, &SgvCrypto::exportProject);
     fileMenu->addAction(exportAction);
+
 }
 QString SgvCrypto::encrypt(const QString &id){
     // Get the prefix and suffix of the ID
@@ -592,4 +594,41 @@ bool SgvCrypto::writeProjectFile(const QString& filePath)
 
     return true;
 }
+void SgvCrypto::onTableDoubleClicked(const QModelIndex &index)
+{
+    // Check if the double-clicked cell is in the "Description" column
+    if (index.isValid() && index.column() == 3) {
+        // Create a dialog
+        QDialog dialog(this);
+        dialog.setWindowTitle("Edit Description");
 
+        // Get the size of the main window
+        QSize mainWindowSize = size();
+        int dialogWidth = mainWindowSize.width() / 2; // Set the width to 50% of the main window width
+        int dialogHeight = mainWindowSize.height() / 2; // Set the height to 50% of the main window height
+
+        // Set the size of the dialog
+        dialog.resize(dialogWidth, dialogHeight);
+        // Create a QPlainTextEdit widget
+        QPlainTextEdit *plainTextEdit = new QPlainTextEdit(&dialog);
+        plainTextEdit->setPlainText(model->data(index).toString());
+
+        // Create a Save button
+        QPushButton *saveButton = new QPushButton("Save", &dialog);
+
+        // Layout for the dialog
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
+        layout->addWidget(plainTextEdit);
+        layout->addWidget(saveButton);
+
+        // Connect the Save button's clicked signal to a slot
+        connect(saveButton, &QPushButton::clicked, [&]() {
+            // Update the corresponding cell in the "Description" column with the text from QPlainTextEdit
+            model->setData(index, plainTextEdit->toPlainText());
+            dialog.close();
+        });
+
+        // Show the dialog
+        dialog.exec();
+    }
+}
