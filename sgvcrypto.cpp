@@ -244,7 +244,18 @@ QFuture<bool> SgvCrypto::encryptVideo(const QString &inputFilePath, const QStrin
         QByteArray outputFilePathUtf = outputFilePath.toUtf8();
         const char* gf_outputFilePathUtf = outputFilePathUtf.constData();
         qDebug()<<"gf_outputFilePathUtf file : "<<outputFilePathUtf;
-        const char *drm_file = "drm_file.xml";  // Assuming no DRM configuration needed
+        QString tfile;
+        QTemporaryDir tempDir;
+        if (tempDir.isValid()) {
+            const QString tempFile = tempDir.path() + "/yourfile.xlsx";
+            if (QFile::copy(":/drm/drm_file.xml", tempFile)) {
+                tfile=tempFile;
+            }
+            else
+                tfile="";
+        }
+         const char *drm_file = tfile.toUtf8().constData();
+
         emit startTimerSignal();
         GF_Err err = gf_crypt_file(infile, drm_file, gf_outputFilePathUtf, 0.0, 1);
         emit stopTimerSignal();
@@ -302,8 +313,6 @@ void SgvCrypto::processFilesRecursive(const QStringList& inputFilePaths, const Q
                 emit encryptionVideoProgressChanged(percentage);
                 lastProgress = percentage;
             }
-        } else {
-            qDebug() << "Output file not found info";
         }
     });
 
@@ -580,7 +589,7 @@ bool SgvCrypto::writeProjectFile(const QString& filePath)
     QJsonDocument jsonDoc(projectObject);
     QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Indented);
     QString nonConstFilePath = filePath;  // Create a non-const copy
-     if (!nonConstFilePath.endsWith(".sngvproject", Qt::CaseInsensitive)) {
+    if (!nonConstFilePath.endsWith(".sngvproject", Qt::CaseInsensitive)) {
         nonConstFilePath += ".sngvproject";
     }
     QFile file(nonConstFilePath);  // Change this line

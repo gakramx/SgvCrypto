@@ -13,18 +13,21 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Concurrent Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Concurrent Widgets)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GPAC REQUIRED gpac)
-
+qt_add_resources( DRMRC drm.qrc
+)
 set(PROJECT_SOURCES
-        main.cpp
-        sgvcrypto.cpp
-        sgvcrypto.h
-        sgvcrypto.ui
+    main.cpp
+    sgvcrypto.cpp
+    sgvcrypto.h
+    sgvcrypto.ui
+    ${DRMRC}
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(SgvCrypto
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
+        drm.qrc
 
     )
 # Define target properties for Android with Qt 6 as:
@@ -36,13 +39,13 @@ else()
         add_library(SgvCrypto SHARED
             ${PROJECT_SOURCES}
         )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-    else()
-        add_executable(SgvCrypto
-            ${PROJECT_SOURCES}
-        )
-    endif()
+    # Define properties for Android with Qt 5 after find_package() calls as:
+    #    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
+else()
+    add_executable(SgvCrypto
+        ${PROJECT_SOURCES}
+    )
+endif()
 endif()
 
 target_link_libraries(SgvCrypto PRIVATE Qt${QT_VERSION_MAJOR}::Widgets   Qt${QT_VERSION_MAJOR}::Concurrent   ${GPAC_LIBRARIES})

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" />
+<GPACDRM type="CENC AES-CTR">
+        <CrypTrack trackID="0" IsEncrypted="1" IV_size="16" first_IV="0xcbe0adeea21272f582bea40ffdca59ee">
+                <key KID="0xe40c050015175ead3b2de4dd94bd1360" value="0xb45b4a1c441d30ea134075e3cde260d3"/>
+	</CrypTrack>
+</GPACDRM> 
